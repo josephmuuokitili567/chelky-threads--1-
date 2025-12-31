@@ -106,6 +106,7 @@ const ReviewComponent: React.FC<ReviewComponentProps> = ({ productId }) => {
           onMouseEnter={() => interactive && onHover(star)}
           onMouseLeave={() => interactive && onLeave()}
           onClick={() => interactive && onClick(star)}
+          title={interactive ? `Rate ${star} star${star > 1 ? 's' : ''}` : `${star} star${star > 1 ? 's' : ''}`}
           className={`transition-colors ${interactive ? 'cursor-pointer' : ''} ${
             star <= (interactive ? hoverRating || value : value)
               ? 'text-yellow-400'

@@ -142,6 +142,29 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+app.get('/api/test-analytics', auth(['admin', 'manager']), async (req, res) => {
+  try {
+    const orders = await Order.find({}).limit(1);
+    const products = await Product.find({}).limit(1);
+    const users = await User.find({}).limit(1);
+    
+    res.json({
+      status: 'Analytics endpoint test',
+      ordersCount: await Order.countDocuments({}),
+      productsCount: await Product.countDocuments({}),
+      usersCount: await User.countDocuments({}),
+      sample: {
+        order: orders[0] || null,
+        product: products[0] || null,
+        user: users[0] ? { email: users[0].email, role: users[0].role } : null
+      }
+    });
+  } catch (e) {
+    console.error('Test analytics error:', e.message);
+    res.status(500).json({ error: 'Test failed', details: e.message });
+  }
+});
+
 // --- Auth Routes ---
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -627,25 +650,27 @@ app.get('/api/analytics/overview', auth(['admin', 'manager']), async (req, res) 
     const users = await User.find({});
     const reviews = await Review.find({});
 
-    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     const totalOrders = orders.length;
     const completedOrders = orders.filter(o => o.status === 'Completed').length;
     const totalCustomers = users.filter(u => u.role === 'customer').length;
     const totalProducts = products.length;
     const averageRating = products.length > 0 
-      ? (products.reduce((sum, p) => sum + p.averageRating, 0) / products.length).toFixed(2)
+      ? (products.reduce((sum, p) => sum + (p.averageRating || 0), 0) / products.length).toFixed(2)
       : 0;
 
-    res.json({
-      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
-      totalOrders,
-      completedOrders,
-      completionRate: totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : 0,
-      totalCustomers,
-      totalProducts,
-      averageRating: parseFloat(averageRating),
-      totalReviews: reviews.length
-    });
+    const response = {
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)) || 0,
+      totalOrders: totalOrders || 0,
+      completedOrders: completedOrders || 0,
+      completionRate: totalOrders > 0 ? parseFloat(((completedOrders / totalOrders) * 100).toFixed(1)) : 0,
+      totalCustomers: totalCustomers || 0,
+      totalProducts: totalProducts || 0,
+      averageRating: parseFloat(averageRating) || 0,
+      totalReviews: reviews.length || 0
+    };
+    
+    res.json(response);
   } catch (e) {
     console.error('Analytics overview error:', e.message);
     res.status(500).json({ error: 'Failed to fetch analytics overview' });
@@ -663,15 +688,17 @@ app.get('/api/analytics/revenue', auth(['admin', 'manager']), async (req, res) =
       if (!revenueByDate[date]) {
         revenueByDate[date] = 0;
       }
-      revenueByDate[date] += order.totalAmount;
+      revenueByDate[date] += order.totalAmount || 0;
     });
 
-    const data = Object.entries(revenueByDate).map(([date, amount]) => ({
-      date,
-      revenue: parseFloat(amount.toFixed(2))
-    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const data = Object.entries(revenueByDate)
+      .map(([date, amount]) => ({
+        date,
+        revenue: parseFloat(parseFloat(amount).toFixed(2)) || 0
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    res.json(data);
+    res.json(data || []);
   } catch (e) {
     console.error('Revenue analytics error:', e.message);
     res.status(500).json({ error: 'Failed to fetch revenue analytics' });
@@ -691,15 +718,18 @@ app.get('/api/analytics/orders', auth(['admin', 'manager']), async (req, res) =>
     };
 
     orders.forEach(order => {
-      statusCounts[order.status]++;
+      const status = order.status || 'Pending';
+      if (statusCounts[status] !== undefined) {
+        statusCounts[status]++;
+      }
     });
 
     const data = Object.entries(statusCounts).map(([status, count]) => ({
       status,
-      count
+      count: count || 0
     }));
 
-    res.json(data);
+    res.json(data || []);
   } catch (e) {
     console.error('Order analytics error:', e.message);
     res.status(500).json({ error: 'Failed to fetch order analytics' });
@@ -715,7 +745,7 @@ app.get('/api/analytics/top-products', auth(['admin', 'manager']), async (req, r
     orders.forEach(order => {
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
-          const productId = item.id;
+          const productId = item.id || item._id || 'unknown';
           if (!productSales[productId]) {
             productSales[productId] = { quantity: 0, name: item.name || 'Unknown' };
           }
@@ -727,13 +757,13 @@ app.get('/api/analytics/top-products', auth(['admin', 'manager']), async (req, r
     const data = Object.entries(productSales)
       .map(([id, data]) => ({
         productId: id,
-        name: data.name,
-        sales: data.quantity
+        name: data.name || 'Unknown',
+        sales: data.quantity || 0
       }))
-      .sort((a, b) => b.sales - a.sales)
+      .sort((a, b) => (b.sales || 0) - (a.sales || 0))
       .slice(0, 10);
 
-    res.json(data);
+    res.json(data || []);
   } catch (e) {
     console.error('Top products error:', e.message);
     res.status(500).json({ error: 'Failed to fetch top products' });
@@ -761,15 +791,17 @@ app.get('/api/analytics/customer-metrics', auth(['admin', 'manager']), async (re
     const oneTimeCustomers = Object.values(customerOrderCounts).filter(count => count === 1).length;
     const repeatCustomers = Object.values(customerOrderCounts).filter(count => count > 1).length;
 
-    res.json({
-      totalCustomers: customers.length,
-      oneTimeCustomers,
-      repeatCustomers,
-      repeatRate: customers.length > 0 ? ((repeatCustomers / customers.length) * 100).toFixed(1) : 0,
+    const response = {
+      totalCustomers: customers.length || 0,
+      oneTimeCustomers: oneTimeCustomers || 0,
+      repeatCustomers: repeatCustomers || 0,
+      repeatRate: customers.length > 0 ? parseFloat(((repeatCustomers / customers.length) * 100).toFixed(1)) : 0,
       averageOrdersPerCustomer: customers.length > 0 
-        ? (orders.length / customers.length).toFixed(2)
+        ? parseFloat((orders.length / customers.length).toFixed(2))
         : 0
-    });
+    };
+
+    res.json(response);
   } catch (e) {
     console.error('Customer metrics error:', e.message);
     res.status(500).json({ error: 'Failed to fetch customer metrics' });
@@ -790,11 +822,11 @@ app.get('/api/analytics/payment-methods', auth(['admin', 'manager']), async (req
     });
 
     const data = Object.entries(paymentMethods).map(([method, count]) => ({
-      method,
-      count
+      method: method || 'Unknown',
+      count: count || 0
     }));
 
-    res.json(data);
+    res.json(data || []);
   } catch (e) {
     console.error('Payment methods error:', e.message);
     res.status(500).json({ error: 'Failed to fetch payment methods' });

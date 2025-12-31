@@ -5,12 +5,13 @@ import { useOrders } from '../context/OrderContext';
 import { UserRole } from '../context/AuthContext';
 import { Product, OrderStatus, Order } from '../types';
 import { Trash2, Edit, Plus, Save, X, RotateCcw, LayoutDashboard, Users, Key, Package, Upload, CheckCircle, AlertCircle, ShoppingCart, DollarSign, Truck, FileText, TrendingUp, Wallet, Lock, MapPin, Eye, ExternalLink, ShieldCheck, Image as ImageIcon } from 'lucide-react';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
 
 const Admin: React.FC = () => {
   const { products, addProduct, updateProduct, deleteProduct, resetToDefaults } = useProducts();
   const { allUsers, adminUpdateUserRole, refreshUsers } = useAuth();
   const { orders, updateOrderStatus, updateOrderTracking, deleteOrder, refreshOrders } = useOrders();
-  const [activeTab, setActiveTab] = useState<'products' | 'users' | 'transactions'>('products');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'users' | 'transactions'>('analytics');
   
   // Notification State
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -341,10 +342,17 @@ const Admin: React.FC = () => {
         </div>
 
         <div className="flex space-x-1 bg-white p-1 rounded-lg shadow-sm w-fit mb-8 border border-slate-200">
+          <button onClick={() => setActiveTab('analytics')} className={`px-6 py-2 rounded-md text-sm font-bold flex items-center ${activeTab === 'analytics' ? 'bg-brand-dark text-white' : 'text-slate-500'}`}><TrendingUp className="h-4 w-4 mr-2" /> Analytics</button>
           <button onClick={() => setActiveTab('products')} className={`px-6 py-2 rounded-md text-sm font-bold flex items-center ${activeTab === 'products' ? 'bg-brand-dark text-white' : 'text-slate-500'}`}><Package className="h-4 w-4 mr-2" /> Products</button>
           <button onClick={() => setActiveTab('users')} className={`px-6 py-2 rounded-md text-sm font-bold flex items-center ${activeTab === 'users' ? 'bg-brand-dark text-white' : 'text-slate-500'}`}><Users className="h-4 w-4 mr-2" /> Users</button>
           <button onClick={() => setActiveTab('transactions')} className={`px-6 py-2 rounded-md text-sm font-bold flex items-center ${activeTab === 'transactions' ? 'bg-brand-dark text-white' : 'text-slate-500'}`}><ShoppingCart className="h-4 w-4 mr-2" /> Transactions</button>
         </div>
+
+        {activeTab === 'analytics' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <AnalyticsDashboard token={localStorage.getItem('token') || ''} />
+          </div>
+        )}
 
         {activeTab === 'products' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -461,11 +469,11 @@ const Admin: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button onClick={() => handleToggleFeatured(p)} className={`h-6 w-11 rounded-full border-2 transition-colors ${p.isFeatured ? 'bg-brand-gold' : 'bg-slate-200'}`}><span className={`block h-5 w-5 rounded-full bg-white transform transition ${p.isFeatured ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                        <button onClick={() => handleToggleFeatured(p)} title={`Toggle featured: currently ${p.isFeatured ? 'featured' : 'not featured'}`} className={`h-6 w-11 rounded-full border-2 transition-colors ${p.isFeatured ? 'bg-brand-gold' : 'bg-slate-200'}`}><span className={`block h-5 w-5 rounded-full bg-white transform transition ${p.isFeatured ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                       </td>
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEditClick(p)} className="p-2 hover:text-brand-gold"><Edit className="h-4 w-4" /></button>
-                        <button onClick={() => handleDelete(p.id)} className="p-2 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => handleEditClick(p)} title="Edit product" className="p-2 hover:text-brand-gold"><Edit className="h-4 w-4" /></button>
+                        <button onClick={() => handleDelete(p.id)} title="Delete product" className="p-2 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
