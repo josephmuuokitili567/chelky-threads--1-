@@ -1,0 +1,7 @@
+{
+  "name": "Chelky Threads",
+  "description": "A premier Kenyan fashion e-commerce platform specializing in trendy footwear and apparel. Features M-Pesa payment integration and a modern shopping experience.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
