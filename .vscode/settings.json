@@ -1,0 +1,6 @@
+{
+    "git.ignoreLimitWarning": true,
+    "azurescribeai.deploymentName": "Joseph",
+    "azurescribeai.endpoint": "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",
+    "azurescribeai.models": "gpt-4"
+}
